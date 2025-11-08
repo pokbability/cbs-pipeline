@@ -1,25 +1,42 @@
-ACCOUNT_SCHEMA = {
-    "account_id": "string",
-    "account_type": "string",
-    "balance": "double",
-    "opened_date": "date",
-    "status": "string"
-}
+from pyspark.sql.types import StructField, StringType, DecimalType, StructType, DateType
+from constants import *
 
-CUSTOMER_SCHEMA = {
-    "customer_id": "string",
-    "first_name": "string",
-    "last_name": "string",
-    "email": "string",
-    "phone": "string",
-    "address": "string",
-    "created_date": "date"
-}
+class IngestionSchema:
 
-TRANSACTION_SCHEMA = {
-    "transaction_id": "string",
-    "account_id": "string",
-    "transaction_type": "string",
-    "amount": "double",
-    "transaction_date": "timestamp"
-}
+    @staticmethod
+    def account_fields():
+
+        return StructType[
+            StructField(ACCOUNT_ID, StringType()),
+            StructField(ACCOUNT_TYPE, StringType()),
+            StructField(ACCOUNT_TYPE, StringType()),
+            StructField(OPENING_DATE, DateType()),
+            StructField(BALANCE, DecimalType(38,22))
+        ]
+
+
+    
+    @staticmethod
+    def customers_fields():
+        return StructType[
+            StructField(CUSTOMER_ID, StringType()),
+            StructField(FIRST_NAME, StringType()),
+            StructField(LAST_NAME, StringType()),
+            StructField(DATE_OF_BIRTH, DateType()),
+            StructField(ADDRESS, DecimalType(38,22)),
+            StructField(CITY, StringType()),
+            StructField(STATE, DateType()),
+            StructField(ZIP, DecimalType(38,22))
+        ]
+    
+    @staticmethod
+    def transactions_fields():
+        return StructType[
+            StructField(TRANSACTION_ID, StringType()),
+            StructField(ACCOUNT_ID, StringType()),
+            StructField(TRANSACTION_DATE, DateType()),
+            StructField(TRANSACTION_TYPE, StringType()),
+            StructField(AMOUNT, DecimalType(38,22)),
+            StructField(DESCRIPTION, StringType()),
+           
+        ]

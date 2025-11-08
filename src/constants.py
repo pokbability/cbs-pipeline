@@ -1,0 +1,35 @@
+# path
+RAW_PATH = 'data/source'
+STAGING_PATH = 'data/staging'
+TRANSFORMED_PATH = 'data/transformed'
+CURATED_PATH = 'data/curated'
+DOT = "."
+DOTDOT = ".."
+SLASH = "/"
+INGESTION = "ingestion"
+ACCOUNTS = "accounts"
+CUSTOMERS = "customers"
+TRANSACTIONS = "transactions"
+CSV = "csv"
+STG = "stg"
+UNDERSCORE = "_"
+#column name
+ACCOUNT_ID="account_id"
+CUSTOMER_ID="customer_id"
+ACCOUNT_TYPE="account_type"
+OPENING_DATE="opening_date"
+BALANCE="balance"	
+CUSTOMER_ID="customer_id"
+FIRST_NAME="first_name"
+LAST_NAME="last_name"
+DATE_OF_BIRTH="date_of_birth"
+ADDRESS="address"
+CITY="city"
+STATE="state"
+ZIP="zip"	
+TRANSACTION_ID="transaction_id"
+ACCOUNT_ID="account_id"
+TRANSACTION_DATE="transaction_date"
+TRANSACTION_TYPE="transaction_type"
+AMOUNT="amount"
+DESCRIPTION="description"
