@@ -1,5 +1,5 @@
 from pyspark.sql.types import StructField, StringType, DecimalType, StructType, DateType
-from constants import *
+from src.constants import *
 
 class IngestionSchema:
 
@@ -10,7 +10,7 @@ class IngestionSchema:
             StructField(ACCOUNT_ID, StringType()),
             StructField(ACCOUNT_TYPE, StringType()),
             StructField(ACCOUNT_TYPE, StringType()),
-            StructField(OPENING_DATE, DateType()),
+            StructField(OPENING_DATE, StringType()),
             StructField(BALANCE, DecimalType(38,22))
         ]
 
@@ -25,7 +25,7 @@ class IngestionSchema:
             StructField(DATE_OF_BIRTH, DateType()),
             StructField(ADDRESS, DecimalType(38,22)),
             StructField(CITY, StringType()),
-            StructField(STATE, DateType()),
+            StructField(STATE, StringType()),
             StructField(ZIP, DecimalType(38,22))
         ]
     
@@ -34,7 +34,7 @@ class IngestionSchema:
         return StructType[
             StructField(TRANSACTION_ID, StringType()),
             StructField(ACCOUNT_ID, StringType()),
-            StructField(TRANSACTION_DATE, DateType()),
+            StructField(TRANSACTION_DATE, StringType()),
             StructField(TRANSACTION_TYPE, StringType()),
             StructField(AMOUNT, DecimalType(38,22)),
             StructField(DESCRIPTION, StringType()),
