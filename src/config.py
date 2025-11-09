@@ -8,7 +8,7 @@ def create_spark_session(session_name):
 
     return (SparkSession.builder
             .appName(session_name)
-            .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.1")
+            .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0")
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
             .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
             .getOrCreate())
@@ -33,6 +33,7 @@ class Base:
                                                     table_name))
         df.write.format("delta") \
             .mode("overwrite") \
+            .option("overwriteSchema", "true") \
             .save(table)
         
     def _write_partitioned(self, df, table_name, path, partition_cols):

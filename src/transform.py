@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class Transformation(Base):
     def __init__(self):
-        self.spark = create_spark_session("ingestion")
+        self.spark = create_spark_session(TRANSFORMATION)
         logger.info("Initialised Transformation Spark Session")
 
         self._pii_strategy = os.getenv("PII_STRATEGY", "hash").lower()
@@ -25,39 +25,32 @@ class Transformation(Base):
         self._mask_generic_udf = udf(_mask_generic_str, StringType())
 
 
-    def transform_customer(self):
+    def transform_customers(self):
         logger.info("Cleansing customer data")
         stg_customers_table = self._read_table(STG+UNDERSCORE+CUSTOMERS, STAGING_PATH)
 
-        int_customers_df = stg_customers_table.select(
-            trim(col(CUSTOMER_ID)).alias(CUSTOMER_ID),
-
-            when(self._pii_strategy == "hash",
-                self._hash_udf(trim(col(FIRST_NAME)))) \
-            .otherwise(self._mask_generic_udf(trim(col(FIRST_NAME)))) \
-            .alias(FIRST_NAME),
-            
-            when(self._pii_strategy == "hash",
-                self._hash_udf(trim(col("last_name")))) \
-            .otherwise(self._mask_generic_udf(trim(col("last_name")))) \
-            .alias("last_name"),
-
-            to_date(col(DATE_OF_BIRTH), "yyyy-MM-dd") \
-            .alias(DATE_OF_BIRTH),
-
-            self._mask_generic_udf(trim(col(ADDRESS))) \
-            .alias(ADDRESS),
-
-            trim(col(CITY)).alias(CITY),
-
-            trim(col(STATE)).alias(STATE),
-
-            regexp_replace(trim(col(ZIP)), "[^0-9]", "").alias(ZIPCODE)
-
-
-
-
-            ).dropDuplicates(["customer_id"])
+        if self._pii_strategy == "hash":
+            int_customers_df = stg_customers_table.select(
+                trim(col(CUSTOMER_ID)).alias(CUSTOMER_ID),
+                self._hash_udf(trim(col(FIRST_NAME))).alias(FIRST_NAME),
+                self._hash_udf(trim(col(LAST_NAME))).alias(LAST_NAME),
+                to_date(col(DATE_OF_BIRTH), "yyyy-MM-dd").alias(DATE_OF_BIRTH),
+                self._mask_generic_udf(trim(col(ADDRESS))).alias(ADDRESS),
+                trim(col(CITY)).alias(CITY),
+                trim(col(STATE)).alias(STATE),
+                regexp_replace(trim(col(ZIP)), "[^0-9]", "").alias(ZIPCODE)
+            ).dropDuplicates([CUSTOMER_ID])
+        else:
+            int_customers_df = stg_customers_table.select(
+                trim(col(CUSTOMER_ID)).alias(CUSTOMER_ID),
+                self._hash_udf(trim(col(FIRST_NAME))).alias(FIRST_NAME),
+                self._hash_udf(trim(col(LAST_NAME))).alias(LAST_NAME),
+                to_date(col(DATE_OF_BIRTH), "yyyy-MM-dd").alias(DATE_OF_BIRTH),
+                self._mask_generic_udf(trim(col(ADDRESS))).alias(ADDRESS),
+                trim(col(CITY)).alias(CITY),
+                trim(col(STATE)).alias(STATE),
+                regexp_replace(trim(col(ZIP)), "[^0-9]", "").alias(ZIPCODE)
+            ).dropDuplicates([CUSTOMER_ID])
         
         self._write_table(int_customers_df, INT+UNDERSCORE+CUSTOMERS, TRANSFORMED_PATH)
         logger.info("Completed cleansing customer data")
@@ -70,26 +63,21 @@ class Transformation(Base):
 
         int_accounts_df = stg_accounts_table.select(
             trim(col(ACCOUNT_ID)).alias(ACCOUNT_ID),
-
-            trim(col(CUSTOMER_ID)).alias(CUSTOMER_ID),
-                
-            lower(trim(col(ACCOUNT_TYPE))).alias(ACCOUNT_TYPE),
-                
-            to_date(col(OPENING_DATE), "yyyy-MM-dd").alias(OPENING_DATE),
-                
-            col(BALANCE).alias(BALANCE),
-                
+            trim(col(CUSTOMER_ID)).alias(CUSTOMER_ID),              
+            lower(trim(col(ACCOUNT_TYPE))).alias(ACCOUNT_TYPE),               
+            to_date(col(OPENING_DATE), "yyyy-MM-dd").alias(OPENING_DATE),               
+            col(BALANCE).alias(BALANCE),               
             current_timestamp().alias(PROCESSED_TIMESTAMP)
-            )
+        )
         
 
         int_accounts_df = int_accounts_df.filter(
-                col(ACCOUNT_ID).isNotNull() &
-                col(CUSTOMER_ID).isNotNull() &
-                col(OPENING_DATE).isNotNull() &
-                col(BALANCE).isNotNull() &
-                col(ACCOUNT_TYPE).isin("savings", "checking", "loan", "investment")
-            )
+            col(ACCOUNT_ID).isNotNull() &
+            col(CUSTOMER_ID).isNotNull() &
+            col(OPENING_DATE).isNotNull() &
+            col(BALANCE).isNotNull() &
+            col(ACCOUNT_TYPE).isin("savings", "checking", "loan", "investment")
+        )
         
 
         self._write_table(int_accounts_df, INT+UNDERSCORE+ACCOUNTS, TRANSFORMED_PATH)   
@@ -99,18 +87,18 @@ class Transformation(Base):
         logger.info("Cleansing transactions data")
         stg_transactions_table = self._read_table(STG+UNDERSCORE+TRANSACTIONS, STAGING_PATH)
         int_transactions_table = stg_transactions_table.select(
-                col(TRANSACTION_ID),
-                col(ACCOUNT_ID),
-                lower(col(TRANSACTION_TYPE)).alias(TRANSACTION_TYPE),
+            col(TRANSACTION_ID),
+            col(ACCOUNT_ID),
+            lower(col(TRANSACTION_TYPE)).alias(TRANSACTION_TYPE),
 
-                when(col(AMOUNT).isNull(), lit(0.0)) \
-                .otherwise(col(AMOUNT)).alias(AMOUNT),
+            when(col(AMOUNT).isNull(), lit(0.0)) \
+            .otherwise(col(AMOUNT)).alias(AMOUNT),
 
-                coalesce(
-                    to_date(col(TRANSACTION_DATE), 'yyyy-MM-dd',
-                    current_timestamp()
-                )).alias(TRANSACTION_DATE),
-                current_timestamp().alias(PROCESSED_TIMESTAMP)
+            coalesce(
+                to_date(col(TRANSACTION_DATE), 'yyyy-MM-dd'),
+                current_timestamp()
+            ).alias(TRANSACTION_DATE),
+            current_timestamp().alias(PROCESSED_TIMESTAMP)
             
         ).dropDuplicates([TRANSACTION_ID])
         
