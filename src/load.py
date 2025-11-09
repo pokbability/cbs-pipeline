@@ -4,15 +4,14 @@ import os
 import pathlib
 from src.constants import *
 from pyspark.sql.functions import (
-    col, lower, regexp_replace, split, sha2, broadcast,
-    year, month, dayofmonth, current_timestamp,trim, date_format
+    col, lower, sha2, broadcast, year, month, dayofmonth, current_timestamp, date_format
 )
 
 logger = logging.getLogger(__name__)
 
 class Load(Base):
     def __init__(self):
-        self.spark = create_spark_session()
+        self.spark = create_spark_session(LOAD)
         logger.info("Initialised loading to curated layer with Spark session")
 
     
@@ -101,7 +100,7 @@ class Load(Base):
             )
         )
 
-        self._write_table(dim_date, DIM+DATE, CURATED_PATH)
+        self._write_table(dim_date, DIM+UNDERSCORE+DATE, CURATED_PATH)
         return dim_date
 
     def build_dim_transaction_types(self):
@@ -116,7 +115,7 @@ class Load(Base):
             .select(DIM_TRANSACTION_TYPE_ID, TRANSACTION_TYPE)
         )
 
-        self._write_table(dim_tx_types, DIM+TRANSACTION_TYPE, CURATED_PATH)
+        self._write_table(dim_tx_types, DIM+UNDERSCORE+TRANSACTION_TYPE, CURATED_PATH)
         return dim_tx_types
 
     
@@ -136,7 +135,7 @@ class Load(Base):
         customers_lookup = dim_customers.select(DIM_CUSTOMER_ID, CUSTOMER_ID)
         
         date_lookup = broadcast(dim_date.select(DIM_DATE_ID, DATE))
-        type_lookup = broadcast(dim_types.select(DIM_TRANSACTION_TYPE_ID, TRANSACTION_DATE))
+        type_lookup = broadcast(dim_types.select(DIM_TRANSACTION_TYPE_ID, TRANSACTION_TYPE))
 
         fact_tx = (
             tx_prepro.join(accounts_lookup, on=ACCOUNT_ID, how="left")
@@ -158,13 +157,12 @@ class Load(Base):
                 DIM_CUSTOMER_ID,
                 DIM_DATE_ID,
                 AMOUNT,
-                DESCRIPTION,
                 TRANSACTION_DATE,
                 PROCESSED_TIMESTAMP
             )
         )
 
-        self._write_partitioned(final_tx, FACT+TRANSACTIONS, [TRANSACTION_DATE])
+        self._write_partitioned(final_tx, FACT+UNDERSCORE+TRANSACTIONS, CURATED_PATH, [TRANSACTION_DATE])
         return final_tx
 
     

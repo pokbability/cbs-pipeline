@@ -38,7 +38,8 @@ class Transformation(Base):
                 self._mask_generic_udf(trim(col(ADDRESS))).alias(ADDRESS),
                 trim(col(CITY)).alias(CITY),
                 trim(col(STATE)).alias(STATE),
-                regexp_replace(trim(col(ZIP)), "[^0-9]", "").alias(ZIPCODE)
+                regexp_replace(trim(col(ZIP)), "[^0-9]", "").alias(ZIPCODE),
+                current_timestamp().alias(PROCESSED_TIMESTAMP)
             ).dropDuplicates([CUSTOMER_ID])
         else:
             int_customers_df = stg_customers_table.select(
@@ -49,7 +50,8 @@ class Transformation(Base):
                 self._mask_generic_udf(trim(col(ADDRESS))).alias(ADDRESS),
                 trim(col(CITY)).alias(CITY),
                 trim(col(STATE)).alias(STATE),
-                regexp_replace(trim(col(ZIP)), "[^0-9]", "").alias(ZIPCODE)
+                regexp_replace(trim(col(ZIP)), "[^0-9]", "").alias(ZIPCODE),
+                current_timestamp().alias(PROCESSED_TIMESTAMP)
             ).dropDuplicates([CUSTOMER_ID])
         
         self._write_table(int_customers_df, INT+UNDERSCORE+CUSTOMERS, TRANSFORMED_PATH)
@@ -90,10 +92,8 @@ class Transformation(Base):
             col(TRANSACTION_ID),
             col(ACCOUNT_ID),
             lower(col(TRANSACTION_TYPE)).alias(TRANSACTION_TYPE),
-
             when(col(AMOUNT).isNull(), lit(0.0)) \
             .otherwise(col(AMOUNT)).alias(AMOUNT),
-
             coalesce(
                 to_date(col(TRANSACTION_DATE), 'yyyy-MM-dd'),
                 current_timestamp()
@@ -103,7 +103,7 @@ class Transformation(Base):
         ).dropDuplicates([TRANSACTION_ID])
         
 
-        self._write_table(int_transactions_table, INT+UNDERSCORE+ACCOUNTS, TRANSFORMED_PATH)
+        self._write_table(int_transactions_table, INT+UNDERSCORE+TRANSACTIONS, TRANSFORMED_PATH)
 
     def transform_all(self):
         self.transform_customers()
