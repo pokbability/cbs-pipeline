@@ -1,5 +1,5 @@
 import logging
-from src.config import create_spark_session
+from src.config import create_spark_session, Base
 from src.constants import *
 import pathlib
 import os
@@ -11,7 +11,7 @@ from pyspark.sql.types import StringType
 
 logger = logging.getLogger(__name__)
 
-class Transformation:
+class Transformation(Base):
     def __init__(self):
         self.spark = create_spark_session("ingestion")
         logger.info("Initialised Transformation Spark Session")
@@ -25,31 +25,9 @@ class Transformation:
         self._mask_generic_udf = udf(_mask_generic_str, StringType())
 
 
-
-    def _read_ingested_table(self, table_name):
-        file_location = pathlib.Path(__file__).parent.resolve()
-        staging_table = os.path.realpath(os.path.join(file_location,
-                                                    DOTDOT,
-                                                    STAGING_PATH,
-                                                    table_name))
-        
-        return self.spark.read.format("delta").load(staging_table)
-    
-    def _write_transformed_table(self, df, table_name):
-        file_location = pathlib.Path(__file__).parent.resolve()
-        transformed_table = os.path.realpath(os.path.join(file_location,
-                                                    DOTDOT,
-                                                    TRANSFORMED_PATH,
-                                                    table_name))
-        df.write.format("delta") \
-            .mode("overwrite") \
-            .save(transformed_table)
-
-
-
     def transform_customer(self):
         logger.info("Cleansing customer data")
-        stg_customers_table = self._read_ingested_table(STG+UNDERSCORE+CUSTOMERS)
+        stg_customers_table = self._read_table(STG+UNDERSCORE+CUSTOMERS, STAGING_PATH)
 
         int_customers_df = stg_customers_table.select(
             trim(col(CUSTOMER_ID)).alias(CUSTOMER_ID),
@@ -81,14 +59,14 @@ class Transformation:
 
             ).dropDuplicates(["customer_id"])
         
-        self._write_transformed_table(int_customers_df, INT+UNDERSCORE+CUSTOMERS)
+        self._write_table(int_customers_df, INT+UNDERSCORE+CUSTOMERS, TRANSFORMED_PATH)
         logger.info("Completed cleansing customer data")
 
     
     def transform_accounts(self):
 
         logger.info("Cleansing accounts data")
-        stg_accounts_table = self._read_ingested_table(STG+UNDERSCORE+ACCOUNTS)
+        stg_accounts_table = self._read_table(STG+UNDERSCORE+ACCOUNTS, STAGING_PATH)
 
         int_accounts_df = stg_accounts_table.select(
             trim(col(ACCOUNT_ID)).alias(ACCOUNT_ID),
@@ -114,12 +92,12 @@ class Transformation:
             )
         
 
-        self._write_transformed_table(int_accounts_df, INT+UNDERSCORE+ACCOUNTS)   
+        self._write_table(int_accounts_df, INT+UNDERSCORE+ACCOUNTS, TRANSFORMED_PATH)   
         logger.info("Completed account data transformation")
 
     def transform_transactions(self):
         logger.info("Cleansing transactions data")
-        stg_transactions_table = self._read_ingested_table(STG+UNDERSCORE+TRANSACTIONS)
+        stg_transactions_table = self._read_table(STG+UNDERSCORE+TRANSACTIONS, STAGING_PATH)
         int_transactions_table = stg_transactions_table.select(
                 col(TRANSACTION_ID),
                 col(ACCOUNT_ID),
@@ -137,7 +115,7 @@ class Transformation:
         ).dropDuplicates([TRANSACTION_ID])
         
 
-        self._write_silver_table(int_transactions_table, INT+UNDERSCORE+ACCOUNTS)
+        self._write_table(int_transactions_table, INT+UNDERSCORE+ACCOUNTS, TRANSFORMED_PATH)
 
     def transform_all(self):
         self.transform_customers()
