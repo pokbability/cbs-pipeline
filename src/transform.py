@@ -105,7 +105,7 @@ class Transformation:
             )
         
 
-        silver_accounts = silver_accounts.filter(
+        int_accounts_df = int_accounts_df.filter(
                 col(ACCOUNT_ID).isNotNull() &
                 col(CUSTOMER_ID).isNotNull() &
                 col(OPENING_DATE).isNotNull() &
