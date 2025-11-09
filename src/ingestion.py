@@ -26,7 +26,7 @@ class Ingestion(Base):
         self.watermark_file = os.path.realpath(os.path.join(file_location,
                                                         DOTDOT,
                                                         CONTROL,
-                                                        WATERMARK_file))
+                                                        WATERMARK_FILE))
         os.makedirs(os.path.dirname(self.watermark_file), exist_ok=True)
         logger.info("Initialise Ingestion Spark Session")
 

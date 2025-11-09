@@ -19,7 +19,7 @@ TIMESTAMP = "timestamp"
 DIM = "dim"
 FACT = "fact"
 CONTROL = "control"
-WATERMARK_file = "watermark.json"
+WATERMARK_FILE = "watermark.json"
 STAR = "*"
 #column name
 ACCOUNT_ID="account_id"
