@@ -7,7 +7,7 @@ from pyspark.sql.functions import current_timestamp, input_file_name
 from src.config import create_spark_session, Base, setup_logging
 from src.schema import IngestionSchema
 
-setup_logging(log_level="INFO", log_file="logs/ingestion.log")
+setup_logging(log_level="WARN", log_file="logs/ingestion.log")
 
 import logging
 logger = logging.getLogger(__name__)
