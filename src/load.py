@@ -1,5 +1,4 @@
-import logging
-from src.config import create_spark_session, Base
+from src.config import create_spark_session, Base, setup_logging
 import os
 import pathlib
 from src.constants import *
@@ -7,6 +6,8 @@ from pyspark.sql.functions import (
     col, lower, sha2, broadcast, year, month, dayofmonth, current_timestamp, date_format
 )
 
+setup_logging(log_level="WARN", log_file=LOGS+SLASH+LOAD+DOT+LOG)
+import logging
 logger = logging.getLogger(__name__)
 
 class Load(Base):
@@ -32,7 +33,6 @@ class Load(Base):
                 col(ZIPCODE),
                 col(PROCESSED_TIMESTAMP)
             )
-            .dropDuplicates([CUSTOMER_ID])
             .withColumn(DIM_CUSTOMER_ID, sha2(col(CUSTOMER_ID), 256))
             .select(
                 DIM_CUSTOMER_ID,
@@ -63,7 +63,6 @@ class Load(Base):
                 col(BALANCE),
                 col(PROCESSED_TIMESTAMP)
             )
-            .dropDuplicates([ACCOUNT_ID])
             .withColumn(DIM_ACCOUNT_ID, sha2(col(ACCOUNT_ID), 256))
             .select(
                 DIM_ACCOUNT_ID,
@@ -86,7 +85,6 @@ class Load(Base):
             transactions
             .select(col(TRANSACTION_DATE))
             .where(col(TRANSACTION_DATE).isNotNull())
-            .dropDuplicates([TRANSACTION_DATE]) 
             .withColumn(DIM_DATE_ID, date_format(col(TRANSACTION_DATE), "yyyyMMdd"))
             .withColumn(YEAR, year(col(TRANSACTION_DATE)))
             .withColumn(MONTH, month(col(TRANSACTION_DATE)))
@@ -121,12 +119,12 @@ class Load(Base):
     
     def build_fact_transactions(self):
         
-        tx_prepro = self._read_table(INT+UNDERSCORE+TRANSACTIONS, TRANSFORMED_PATH)
+        transactions = self._read_table(INT+UNDERSCORE+TRANSACTIONS, TRANSFORMED_PATH)
 
         
         dim_accounts = self._read_table(DIM +UNDERSCORE+ ACCOUNTS, CURATED_PATH)
         dim_customers = self._read_table(DIM +UNDERSCORE+ CUSTOMERS, CURATED_PATH)
-        dim_date = self._read_table(DIM +UNDERSCORE+ DATE, CURATED_PATH)
+        dim_date = self._read_table(DIM +UNDERSCORE+DATE, CURATED_PATH)
         dim_types = self._read_table(DIM +UNDERSCORE+ TRANSACTION_TYPE, CURATED_PATH)
 
 
@@ -138,9 +136,9 @@ class Load(Base):
         type_lookup = broadcast(dim_types.select(DIM_TRANSACTION_TYPE_ID, TRANSACTION_TYPE))
 
         fact_tx = (
-            tx_prepro.join(accounts_lookup, on=ACCOUNT_ID, how="left")
+            transactions.join(accounts_lookup, on=ACCOUNT_ID, how="left")
             .join(customers_lookup,on=CUSTOMER_ID, how="left")
-            .join(date_lookup,tx_prepro.transaction_type == date_lookup.date,"left")
+            .join(date_lookup,transactions.transaction_date == date_lookup.date,"left")
             .join(type_lookup, on=TRANSACTION_TYPE, how="left")
         )
 
@@ -162,35 +160,40 @@ class Load(Base):
             )
         )
 
-        self._write_partitioned(final_tx, FACT+UNDERSCORE+TRANSACTIONS, CURATED_PATH, [TRANSACTION_DATE])
+        self._write_table(final_tx, FACT+UNDERSCORE+TRANSACTIONS, CURATED_PATH, partition_cols=[TRANSACTION_DATE])
         return final_tx
 
     
     def create_star_schema(self):
-        logger.info("Starting star schema creation")
-        
-        self.spark.conf.set("spark.sql.adaptive.enabled", "true")  # Enable AQE
-        
-
-        logger.info("Building and caching dimension tables")
+        try:
+            logger.info("Starting star schema creation")
             
-        dim_customers = self.build_dim_customers()
-        dim_customers.cache()
-            
-        dim_accounts = self.build_dim_accounts()
-        dim_accounts.cache()
-            
-        dim_date = self.build_dim_date()
-        dim_date.cache()
-            
-        dim_types = self.build_dim_transaction_types()
-        dim_types.cache() 
+            self.spark.conf.set("spark.sql.adaptive.enabled", "true")  # Enable AQE
             
 
-            
-        logger.info("Building fact table")
-        self.build_fact_transactions()
-            
-        # Clear caches after fact table is built
-        self.spark.catalog.clearCache()
+            logger.info("Building and caching dimension tables")
+                
+            dim_customers = self.build_dim_customers()
+            dim_customers.cache()
+                
+            dim_accounts = self.build_dim_accounts()
+            dim_accounts.cache()
+                
+            dim_date = self.build_dim_date()
+            dim_date.cache()
+                
+            dim_types = self.build_dim_transaction_types()
+            dim_types.cache() 
+                
+
+                
+            logger.info("Building fact table")
+            self.build_fact_transactions()
+                
+            # Clear caches after fact table is built
+            self.spark.catalog.clearCache()
+        finally:
+            self.spark.stop()
+
+        
             
